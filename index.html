@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tables">
+<title>Crabby George's Tables</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#171e2e; --floor:#1b2438; --line:#33405e; --text:#e8edf7; --muted:#8e9ab3;
+  --tbl:#24304a; --tbl-b:#4a5a80;
+  --ok:#22c55e; --ok-ink:#052e14; --warn:#f59e0b; --warn-ink:#3b2300; --accent:#60a5fa; --danger:#ef4444;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#eef1f6; --panel:#ffffff; --floor:#dfe6f2; --line:#b7c3d9; --text:#111827; --muted:#5b6476;
+  --tbl:#ffffff; --tbl-b:#8fa0c0; --accent:#2563eb;
+}}
+:root[data-theme="dark"]{--bg:#0f1420}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;padding:12px 16px 24px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+h1{font-size:18px;margin:0;letter-spacing:.2px}
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.dot.off{background:var(--danger)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--text);padding:9px 12px;font:inherit;font-weight:600;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+.seg button.on.okm{background:var(--ok);color:var(--ok-ink)}
+.seg button.on.warnm{background:var(--warn);color:var(--warn-ink)}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:10px;padding:9px 12px;font:inherit;font-weight:600;cursor:pointer}
+.ready{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;min-height:58px;overflow-x:auto}
+.ready .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);white-space:nowrap;margin-right:4px}
+.chip{flex:none;border:0;border-radius:10px;padding:7px 12px;font:inherit;font-weight:800;font-size:18px;cursor:pointer;display:flex;align-items:baseline;gap:6px}
+.chip small{font-size:12px;font-weight:600;opacity:.8}
+.chip.ready-c{background:var(--ok);color:var(--ok-ink)}
+.chip.clean-c{background:var(--warn);color:var(--warn-ink)}
+.t.full{background:var(--danger);border-color:var(--danger);color:#fff}
+.seg button.on.fullm{background:var(--danger);color:#fff}
+.b-full{background:var(--danger);color:#fff}
+.empty{color:var(--muted);font-size:14px}
+.tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:10px 10px 0 0;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.badge{background:var(--danger);color:#fff;border-radius:999px;font-size:12px;padding:1px 8px;font-weight:800}
+.scroll{overflow-x:auto;border-radius:12px;border:1px solid var(--line);background:var(--floor)}
+.floor{position:relative;width:100%;min-width:620px;margin:0 auto;background:var(--floor)}
+.t{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid var(--tbl-b);background:var(--tbl);color:var(--text);border-radius:6px;font-weight:800;font-size:clamp(16px,2vw,26px);cursor:pointer;user-select:none;transition:transform .08s,background .15s;padding:0}
+.t:active{transform:scale(.95)}
+.t.round{border-radius:50%}
+.t .m{font-size:11px;font-weight:700;opacity:.85;margin-top:1px}
+.t.ready{background:var(--ok);border-color:var(--ok);color:var(--ok-ink)}
+.t.clean{background:repeating-linear-gradient(135deg,var(--warn) 0 10px,color-mix(in srgb,var(--warn) 75%,#000) 10px 20px);border-color:var(--warn);color:var(--warn-ink)}
+.t.flash{animation:fl 1s ease-out 3}
+@keyframes fl{0%{box-shadow:0 0 0 0 rgba(37,99,235,.9)}100%{box-shadow:0 0 0 22px rgba(37,99,235,0)}}
+.t.new{border-color:var(--accent);border-width:3px}
+.t.new .m{color:var(--accent)}
+.chip.new-c{background:var(--panel);color:var(--text);border:2px solid var(--accent)}
+.stat{font-weight:800;font-size:15px;white-space:nowrap}
+.stat b{font-size:20px}
+.t.hl{outline:4px solid var(--accent);outline-offset:3px}
+.deco{position:absolute;border:2px solid var(--line);border-radius:4px;pointer-events:none;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--muted);text-align:center;font-size:clamp(11px,1.2vw,16px);line-height:1.1}
+.hline{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--line);pointer-events:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:10px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.note{padding:40px 16px;text-align:center;color:var(--muted)}
+.banner{background:color-mix(in srgb,var(--danger) 18%,var(--panel));border:1px solid var(--danger);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px;display:none}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{background:var(--panel);border-radius:16px 16px 0 0;padding:16px;width:min(480px,100%);display:flex;flex-direction:column;gap:10px}
+.sheet h2{margin:0 0 4px;font-size:20px}
+.sheet button{padding:16px;font:inherit;font-size:17px;font-weight:800;border-radius:12px;border:0;cursor:pointer}
+.b-ok{background:var(--ok);color:var(--ok-ink)} .b-warn{background:var(--warn);color:var(--warn-ink)}
+.b-seat{background:var(--accent);color:#fff} .b-x{background:transparent;color:var(--muted);border:1px solid var(--line)!important}
+.b-danger{background:var(--danger);color:#fff}
+.t{touch-action:none}
+.t .p{position:absolute;top:3px;left:5px;font-size:11px;font-weight:700;opacity:.7}
+.t.grp{border-style:solid;border-width:3px;border-color:var(--accent);border-radius:10px}
+.t.grp .lab{font-size:clamp(14px,1.6vw,22px)}
+.t.grp .seats{font-size:12px;font-weight:700;opacity:.85}
+.t .split{position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:var(--panel);color:var(--text);border:2px solid var(--line);font-size:13px;line-height:22px;font-weight:800}
+.t.full .split{color:var(--text)}
+.t.drop{outline:4px dashed var(--accent);outline-offset:3px}
+.t.pick{outline:4px solid var(--warn);outline-offset:3px}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hint{display:none;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-weight:700;font-size:14px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;display:none;z-index:20}
+.stepper{display:flex;align-items:center;justify-content:center;gap:18px}
+.stepper button{width:64px;background:var(--bg);color:var(--text);border:1px solid var(--line)!important;font-size:26px}
+.stepper output{font-size:40px;font-weight:800;min-width:60px;text-align:center}
+</style>
+</head><body>
+
+<header>
+  <h1>Crabby George's · Tables</h1>
+  <div class="controls">
+    <button class="btn" id="joinBtn">🔗 Join tables</button>
+    <button class="btn" id="seatsBtn" style="display:none">✎ Seats</button>
+    <button class="btn" id="sound">🔕 Sound off</button>
+    <button class="btn" id="clearAll">Clear all</button>
+    <span class="sync"><span class="dot" id="dot"></span><span id="syncTxt">Connecting…</span></span>
+  </div>
+</header>
+
+<div class="banner" id="banner">Live sync is off — check the internet connection. Changes stay on this screen until it reconnects.</div>
+
+<div class="ready" id="readyBar"></div>
+
+<div class="hint" id="hint"></div>
+<div class="tabs" id="tabs"></div>
+<div class="scroll"><div class="floor" id="floor"></div></div>
+
+<div class="legend">
+  <span><span class="sw" style="background:var(--tbl);border:2px solid var(--tbl-b)"></span>Empty — seat here</span>
+  <span><span class="sw" style="background:var(--danger)"></span>Full</span>
+  <span><span class="sw" style="background:var(--tbl);border:2px solid var(--accent)"></span>Just opened (last 10 min)</span>
+  <span>Tap = Full ↔ Empty. Drag one table onto the next to join them (35·34A·34B and 43–49). ✕ splits a group.</span>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="sheet-bg" id="sheetBg"><div class="sheet" id="sheet"></div></div>
+
+<script>
+// Layout like the POS: [id, centerX, centerY, w, h, round]. Units are arbitrary; W x H is the room box.
+const S=9, WR=[14,7.5], TL=[11,15], RD=10.5;
+const ROOMS = {
+  main: { name:"Main Floor", W:152, H:68, tables:[
+    ["8A",28,6.5,12,7],["8B",46,6.5,12,7],["9",72.5,8,10,10],
+    ["51",102,8,S,S],["18",116,8,S,S],["19",130,8,S,S],["20",143,8,S,S],
+    ["7",34,20,S,S],["10",62,20,RD,RD,1],["17",85,20,RD,RD,1],
+    ["21A",105,24.5,...WR],["21B",122,24.5,...WR],["23",143,27,...TL],
+    ["1",10,35,S,S],["6",39.5,35,S,S],["11",62,35,S,S],["16",85,35,S,S],
+    ["22A",105,35.5,...WR],["22B",122,35.5,...WR],
+    ["2",10,47,S,S],["5",39.5,47,S,S],["12",62,47,S,S],["15",85,47,S,S],
+    ["25",113,48.5,S,S],["24",143,46,...TL],
+    ["3",10,59,S,S],["4",39.5,59,S,S],["13",62,59,S,S],["14",85,59,S,S]
+  ], deco:[["HOST<br>STAND",10,18,9,16],["",31.5,46.5,1,35],["",73.5,46,2,33],["",128,59,40,2.2]], lines:[]},
+  pirates: { name:"Pirates Room", W:150, H:78, tables:[
+    ["42",12,10,13,13],["41",34,10,12,12],["40",55,10,12,12],["39",75,10,12,12],["38",95,10,12,12],["37",114,10,12,12],["36",132,10,12,12],
+    ["43",14,32,13,13],["44",35,32,12,12],["45",55,32,12,12],["46",75,32,12,12],["47",95,32,12,12],["48",114,32,12,12],["49",132,32,12,12],
+    ["35",19,51,12,12],["34A",40,51,17,10],["34B",61,51,15,10],["33",82,51,14,14,1],["32",102,51,14,14,1],["31",125,51,14,11],
+    ["26",14,70,17,12],["27",36,70,15,12],["28",57,70,14,12],["29",78,70,14,12],["30",99,70,14,12],["50",130,69,11,9]
+  ], deco:[], lines:[21.5,61]}
+};
+const ROOM_OF = {};
+for (const [rk,r] of Object.entries(ROOMS)) for (const t of r.tables) ROOM_OF[t[0]] = rk;
+const NEW_MS = 10*60000;
+
+// ---- Combinable chains (only neighbours in these lines can join) ----
+const CHAINS = [["35","34A","34B"],["43","44","45","46","47","48","49"]];
+const SEATS = {"35":4,"34A":4,"34B":4,"43":4,"44":4,"45":4,"46":4,"47":4,"48":4,"49":4};
+const TABLE = {}; for (const r of Object.values(ROOMS)) for (const t of r.tables) TABLE[t[0]] = t;
+
+// ---- State ----
+let state = {}, groups = [], seats = {}, room = "main", soundOn = false, db = null, col = null;
+let mode = "normal", pick = null;
+try { room = localStorage.getItem("ot_room") || "main"; soundOn = localStorage.getItem("ot_sound")==="1"; } catch(e){}
+if (!ROOMS[room]) room = "main";
+const $ = s => document.querySelector(s);
+const mins = at => Math.max(0, Math.floor((Date.now()-at)/60000));
+const isFull = id => !!(state[id] && state[id].status==="full");
+const isNew = id => state[id] && state[id].status==="open" && Date.now()-state[id].at < NEW_MS;
+const seatOf = id => SEATS[id] ?? 0;
+const groupOf = id => groups.find(g => g.includes(id)) || null;
+const membersOf = id => groupOf(id) || [id];
+const labelOf = ids => ids.length>1 ? ids[0]+"–"+ids[ids.length-1] : ids[0];
+function toast(t){ const el=$("#toast"); el.textContent=t; el.style.display="block"; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.display="none",1800); }
+
+function renderTabs(){
+  $("#tabs").innerHTML = Object.entries(ROOMS).map(([k,r]) => {
+    const full = r.tables.filter(t=>isFull(t[0])).length;
+    return `<button class="tab ${k===room?'on':''}" data-r="${k}">${r.name}<span style="font-weight:600;opacity:.85">${r.tables.length-full} empty</span></button>`;
+  }).join("");
+}
+function renderFloor(){
+  const r = ROOMS[room], f = $("#floor");
+  const pct=(v,t)=>(v/t*100).toFixed(3)+'%';
+  f.style.aspectRatio = r.W+'/'+r.H;
+  f.style.maxWidth = `max(620px, calc((100vh - 240px) * ${r.W/r.H}))`;
+  const boxLTWH=(l,t,w,h)=>`left:${pct(l,r.W)};top:${pct(t,r.H)};width:${pct(w,r.W)};height:${pct(h,r.H)}`;
+  let h = r.lines.map(y=>`<div class="hline" style="top:${pct(y,r.H)}"></div>`).join("");
+  h += r.deco.map(([l,cx,cy,w,hh])=>`<div class="deco" style="${boxLTWH(cx-w/2,cy-hh/2,w,hh)}">${l}</div>`).join("");
+  const done = new Set();
+  for (const [id,cx,cy,w,hh,round] of r.tables){
+    if (done.has(id)) continue;
+    const g = mode==="seats" ? null : groupOf(id);
+    const ids = g || [id]; ids.forEach(x=>done.add(x));
+    const full=isFull(id), nw=isNew(id);
+    const sub = full ? `<span class="m">${mins(state[id].at)}m</span>` : nw ? `<span class="m">open ${mins(state[id].at)}m</span>` : '';
+    const cls = `t ${full?'full':''} ${nw?'new':''} ${pick===id?'pick':''}`;
+    if (g){
+      let L=1e9,T=1e9,R=-1e9,B=-1e9;
+      for (const m of g){ const [,x,y,ww,hh2]=TABLE[m]; L=Math.min(L,x-ww/2); T=Math.min(T,y-hh2/2); R=Math.max(R,x+ww/2); B=Math.max(B,y+hh2/2); }
+      const total = g.reduce((a,m)=>a+seatOf(m),0);
+      h += `<button class="${cls} grp" data-id="${id}" style="${boxLTWH(L,T,R-L,B-T)}"><span class="lab">${g.join(" + ")}</span><span class="seats">${total} seats</span>${sub}<span class="split" data-split="${id}">✕</span></button>`;
+    } else {
+      h += `<button class="${cls} ${round?'round':''}" data-id="${id}" style="${boxLTWH(cx-w/2,cy-hh/2,w,hh)}">${seatOf(id)?`<span class="p">${seatOf(id)}</span>`:""}${id}${sub}</button>`;
+    }
+  }
+  f.innerHTML = h;
+}
+function renderBar(){
+  let total=0, full=0;
+  for (const r of Object.values(ROOMS)) for (const t of r.tables){ total++; if (isFull(t[0])) full++; }
+  const seen = new Set(), fresh = [];
+  for (const [id,v] of Object.entries(state).sort((a,b)=>b[1].at-a[1].at)){
+    if (!isNew(id)) continue; const ids = membersOf(id); const key = ids[0];
+    if (seen.has(key)) continue; seen.add(key);
+    fresh.push([key, labelOf(ids), ids.reduce((a,m)=>a+seatOf(m),0), v.at]);
+  }
+  $("#readyBar").innerHTML =
+    `<span class="stat"><b>${total-full}</b> empty</span><span class="stat" style="color:var(--danger)"><b>${full}</b> full</span>`+
+    `<span class="lbl" style="margin-left:10px">Just opened</span>`+
+    (fresh.length ? fresh.map(([id,lab,n,at])=>`<button class="chip new-c" data-id="${id}">${lab}<small>${n?n+"p · ":""}${mins(at)}m</small></button>`).join("") : `<span class="empty">—</span>`);
+}
+function renderHint(){
+  const el=$("#hint");
+  el.style.display = mode==="normal" ? "none" : "block";
+  el.textContent = mode==="join" ? (pick ? `Now tap the table to join with ${pick}. (Only 35·34A·34B and 43–49.)` : "Join mode: tap the first table.")
+                 : mode==="seats" ? "Seats mode: tap a table to change how many people it holds." : "";
+  $("#joinBtn").classList.toggle("on", mode==="join"); $("#joinBtn").textContent = mode==="join" ? "✓ Done" : "🔗 Join tables";
+  $("#seatsBtn").classList.toggle("on", mode==="seats"); $("#seatsBtn").textContent = mode==="seats" ? "✓ Done" : "✎ Seats";
+}
+function render(){ renderTabs(); renderFloor(); renderBar(); renderHint(); }
+
+// ---- Writes ----
+async function writeStatus(id, status){
+  const prev = state[id];
+  state[id] = {status, at: Date.now()};
+  if (!col) return;
+  try { await col.doc(id).set({status, at: state[id].at, room: ROOM_OF[id]}); }
+  catch(e){ if (prev) state[id]=prev; else delete state[id]; render(); setSync("off","Couldn't save — check connection"); }
+}
+async function setTables(ids, status){
+  const p = ids.map(id=>{ const prev=state[id]; state[id]={status,at:Date.now()}; return [id,prev]; });
+  render();
+  if (!col) return;
+  for (const [id,prev] of p){
+    try { await col.doc(id).set({status, at: state[id].at, room: ROOM_OF[id]}); }
+    catch(e){ if (prev) state[id]=prev; else delete state[id]; render(); setSync("off","Couldn't save — check connection"); }
+  }
+}
+async function saveGroups(){ render(); if (db) try{ await db.doc("meta/groups").set({list: groups.map(g=>g.join(","))}); }catch(e){ toast("Couldn't save group"); } }
+async function saveSeats(){ render(); if (db) try{ await db.doc("meta/seats").set(seats); }catch(e){ toast("Couldn't save seats"); } }
+
+function canJoin(a,b){ return CHAINS.findIndex(c=>c.includes(a)) >= 0 && CHAINS.findIndex(c=>c.includes(a)) === CHAINS.findIndex(c=>c.includes(b)); }
+function join(a,b){
+  if (a===b) return;
+  if (!canJoin(a,b)){ toast(`${a} and ${b} can't be joined`); return; }
+  const chain = CHAINS.find(c=>c.includes(a));
+  const idx = [...membersOf(a), ...membersOf(b)].map(x=>chain.indexOf(x));
+  const g = chain.slice(Math.min(...idx), Math.max(...idx)+1);
+  groups = groups.filter(x=>!x.some(m=>g.includes(m))); groups.push(g);
+  const anyFull = g.some(isFull);
+  const need = g.filter(m=>isFull(m)!==anyFull);
+  saveGroups();
+  if (need.length) setTables(need, anyFull ? "full" : "open");
+  toast(`Joined ${labelOf(g)} · ${g.reduce((s,m)=>s+seatOf(m),0)} seats`);
+}
+function split(id){ const g=groupOf(id); if(!g) return; groups = groups.filter(x=>x!==g); saveGroups(); toast(`Split ${labelOf(g)}`); }
+
+function tapTable(id, splitHit){
+  if (mode==="seats"){ openSeats(id); return; }
+  if (mode==="join"){
+    if (!pick){ pick=id; render(); return; }
+    join(pick, id); pick=null; render(); return;
+  }
+  if (splitHit){ split(id); return; }
+  const ids = membersOf(id);
+  setTables(ids, isFull(id) ? "open" : "full");
+}
+
+// ---- Pointer: tap or drag-to-join ----
+let drag = null;
+$("#floor").addEventListener("pointerdown", e=>{
+  const b = e.target.closest(".t"); if (!b) return;
+  drag = {id:b.dataset.id, x:e.clientX, y:e.clientY, moved:false, split: !!e.target.closest(".split"), over:null};
+});
+document.addEventListener("pointermove", e=>{
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 14) drag.moved = true;
+  if (!drag.moved || mode!=="normal") return;
+  const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".t");
+  const over = el && el.dataset.id!==drag.id && !membersOf(drag.id).includes(el.dataset.id) ? el.dataset.id : null;
+  if (over!==drag.over){
+    document.querySelectorAll(".t.drop").forEach(x=>x.classList.remove("drop"));
+    if (over) document.querySelector(`.t[data-id="${CSS.escape(over)}"]`)?.classList.add("drop");
+    drag.over = over;
+  }
+});
+document.addEventListener("pointerup", e=>{
+  if (!drag) return; const d = drag; drag = null;
+  document.querySelectorAll(".t.drop").forEach(x=>x.classList.remove("drop"));
+  if (!d.moved) tapTable(d.id, d.split);
+  else if (d.over && mode==="normal") join(d.id, d.over);
+});
+document.addEventListener("pointercancel", ()=>{ drag=null; document.querySelectorAll(".t.drop").forEach(x=>x.classList.remove("drop")); });
+
+$("#joinBtn").addEventListener("click", ()=>{ mode = mode==="join" ? "normal" : "join"; pick=null; render(); });
+$("#seatsBtn").addEventListener("click", ()=>{ mode = mode==="seats" ? "normal" : "seats"; pick=null; render(); });
+
+$("#readyBar").addEventListener("click", e=>{
+  const c = e.target.closest(".chip"); if (!c) return;
+  const id = c.dataset.id; room = ROOM_OF[id]; saveRoom(); render();
+  const el = document.querySelector(`.t[data-id="${CSS.escape(id)}"]`);
+  if (el){ el.classList.add("hl"); setTimeout(()=>el.classList.remove("hl"),2000); }
+});
+$("#tabs").addEventListener("click", e=>{ const t=e.target.closest(".tab"); if(!t) return; room=t.dataset.r; saveRoom(); render(); });
+function saveRoom(){ try{ localStorage.setItem("ot_room",room); }catch(e){} }
+
+// ---- Sheets ----
+let seatDraft = 4;
+function openSeats(id){
+  seatDraft = seatOf(id);
+  $("#sheet").dataset.id = id;
+  $("#sheet").innerHTML = `<h2>Table ${id} — seats</h2><div class="stepper"><button data-a="minus">−</button><output id="seatOut">${seatDraft}</output><button data-a="plus">+</button></div><button class="b-seat" data-a="saveSeats">Save</button><button class="b-x" data-a="x">Cancel</button>`;
+  $("#sheetBg").style.display = "flex";
+}
+$("#clearAll").addEventListener("click", ()=>{
+  $("#sheet").innerHTML = `<h2>Reset</h2><button class="b-danger" data-a="all">Make every table empty</button><button class="b-seat" data-a="splitAll">Split all joined tables</button><button class="b-x" data-a="x">Cancel</button>`;
+  $("#sheetBg").style.display = "flex";
+});
+$("#sheetBg").addEventListener("click", async e=>{
+  const a = e.target.dataset.a;
+  if (e.target===$("#sheetBg") || a==="x"){ $("#sheetBg").style.display="none"; return; }
+  if (a==="minus"||a==="plus"){ seatDraft = Math.max(1, Math.min(30, seatDraft + (a==="plus"?1:-1))); $("#seatOut").textContent = seatDraft; return; }
+  $("#sheetBg").style.display="none";
+  if (a==="saveSeats"){ seats = {...seats, [$("#sheet").dataset.id]: seatDraft}; saveSeats(); }
+  if (a==="splitAll"){ groups = []; saveGroups(); }
+  if (a==="all"){
+    const ids = Object.keys(state); state = {}; render();
+    if (col) for (const k of ids){ try{ await col.doc(k).delete(); }catch(e){} }
+  }
+});
+
+// ---- Sound (host stand alert when a table opens) ----
+let ac = null;
+function paintSound(){ $("#sound").textContent = soundOn ? "🔔 Sound on" : "🔕 Sound off"; }
+$("#sound").addEventListener("click", ()=>{
+  soundOn=!soundOn; try{localStorage.setItem("ot_sound",soundOn?"1":"0")}catch(e){}
+  if (soundOn) { try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); ac.resume(); beep(); }catch(e){} }
+  paintSound();
+});
+function beep(){
+  if (!soundOn) return;
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(), g=ac.createGain(); o.connect(g); g.connect(ac.destination);
+    o.frequency.value=880; g.gain.setValueAtTime(.0001,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.3,ac.currentTime+.02); g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.35);
+    o.start(); o.stop(ac.currentTime+.4);
+  }catch(e){}
+}
+paintSound();
+
+
+// ---- Firebase Realtime Database adapter (same shape as the page's db calls) ----
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCFNUnlORNdX2-tJ13Hq02zYPsHB1k8UMQ",
+  authDomain: "crabby-tablcrabby-tabless.firebaseapp.com",
+  databaseURL: "https://crabby-tablcrabby-tabless-default-rtdb.firebaseio.com",
+  projectId: "crabby-tablcrabby-tabless",
+  storageBucket: "crabby-tablcrabby-tabless.firebasestorage.app",
+  messagingSenderId: "448503775167",
+  appId: "1:448503775167:web:a97f773b11424d33a26b0a"
+};
+async function firebaseDb(){
+  const A = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const D = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+  const fdb = D.getDatabase(A.initializeApp(FIREBASE_CONFIG));
+  D.onValue(D.ref(fdb, ".info/connected"), s => {
+    const on = s.val() === true;
+    setSync(on ? "live" : "off", on ? "Live" : "Reconnecting…");
+    $("#banner").style.display = on ? "none" : "block";
+  });
+  const docRef = path => ({
+    set: v => D.set(D.ref(fdb, path), v),
+    delete: () => D.remove(D.ref(fdb, path)),
+    onSnapshot: (next, err) => D.onValue(D.ref(fdb, path), s => { const v = s.val(); next({exists: v!==null, data: () => v || undefined}); }, err)
+  });
+  return {
+    doc: docRef,
+    collection: path => ({
+      doc: id => docRef(path + "/" + id),
+      onSnapshot: (next, err) => D.onValue(D.ref(fdb, path), s => {
+        const v = s.val() || {};
+        next({ docs: Object.entries(v).map(([id,d]) => ({id, data: () => d})), metadata: {hasPendingWrites:false} });
+      }, err)
+    })
+  };
+}
+
+// ---- Live sync ----
+function setSync(kind, txt){ $("#dot").className = "dot "+(kind||""); $("#syncTxt").textContent = txt; }
+let first = true;
+function subscribe(){
+  col.onSnapshot(snap=>{
+    const next = {}, opened = [];
+    for (const d of snap.docs){ const v=d.data(); if (v && (v.status==="full"||v.status==="open")) next[d.id]={status:v.status, at:+v.at||Date.now()}; }
+    if (!first && !snap.metadata.hasPendingWrites){
+      for (const [id,v] of Object.entries(next)) if (v.status==="open" && isFull(id)) opened.push(id);
+    }
+    first = false;
+    state = next; render(); setSync("live","Live");
+    if (opened.length){
+      beep();
+      for (const id of opened){ const el=document.querySelector(`.t[data-id="${CSS.escape(id)}"]`); if (el) el.classList.add("flash"); }
+    }
+  }, err=>{
+    setSync("off","Sync stopped — reconnecting");
+    setTimeout(()=>{ first=true; subscribe(); }, 4000);
+  });
+}
+render();
+(async ()=>{
+  try { db = await firebaseDb(); } catch(e){ db=null; }
+  if (!db){ setSync("off","Offline (this device only)"); $("#banner").style.display="block"; return; }
+  col = db.collection("tables");
+  subscribe();
+  db.doc("meta/groups").onSnapshot(d=>{
+    const v = d.exists ? d.data() : null;
+    groups = (v && Array.isArray(v.list)) ? v.list.map(x=>String(x).split(",").filter(id=>TABLE[id])).filter(g=>g.length>1) : [];
+    render();
+  }, ()=>{});
+  db.doc("meta/seats").onSnapshot(d=>{
+    const v = d.exists ? d.data() : {}; const n = {};
+    for (const [k,x] of Object.entries(v||{})) if (TABLE[k] && Number.isFinite(+x)) n[k] = +x;
+    seats = n; render();
+  }, ()=>{});
+})();
+setInterval(()=>{ renderFloor(); renderBar(); }, 30000);
+</script>
