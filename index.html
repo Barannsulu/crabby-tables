@@ -39,6 +39,7 @@ h1{font-size:18px;margin:0;letter-spacing:.2px}
 .chip.ready-c{background:var(--ok);color:var(--ok-ink)}
 .chip.clean-c{background:var(--warn);color:var(--warn-ink)}
 .t.full{background:var(--danger);border-color:var(--danger);color:#fff}
+.t.t.clean{background:#facc15;border-color:#eab308;color:#3b2300}
 .seg button.on.fullm{background:var(--danger);color:#fff}
 .b-full{background:var(--danger);color:#fff}
 .empty{color:var(--muted);font-size:14px}
@@ -75,11 +76,13 @@ h1{font-size:18px;margin:0;letter-spacing:.2px}
 .b-ok{background:var(--ok);color:var(--ok-ink)} .b-warn{background:var(--warn);color:var(--warn-ink)}
 .b-seat{background:var(--accent);color:#fff} .b-x{background:transparent;color:var(--muted);border:1px solid var(--line)!important}
 .b-danger{background:var(--danger);color:#fff}
-.t{touch-action:none}
+.t{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none}
+.t.holding{transform:scale(.94);box-shadow:0 0 0 4px #facc15}
 .t .p{position:absolute;top:3px;left:5px;font-size:11px;font-weight:700;opacity:.7}
 .t.grp{border-style:solid;border-width:3px;border-color:var(--accent);border-radius:10px}
 .t.grp .lab{font-size:clamp(14px,1.6vw,22px)}
-.t.grp .seats{font-size:12px;font-weight:700;opacity:.85}
+.t.grp .seats{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;margin-top:4px}
+.t.grp .sb{width:34px;height:34px;border-radius:50%;background:var(--panel);color:var(--text);border:2px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:20px;line-height:1}
 .t .split{position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:var(--panel);color:var(--text);border:2px solid var(--line);font-size:13px;line-height:22px;font-weight:800}
 .t.full .split{color:var(--text)}
 .t.drop{outline:4px dashed var(--accent);outline-offset:3px}
@@ -115,8 +118,9 @@ h1{font-size:18px;margin:0;letter-spacing:.2px}
 <div class="legend">
   <span><span class="sw" style="background:var(--tbl);border:2px solid var(--tbl-b)"></span>Empty — seat here</span>
   <span><span class="sw" style="background:var(--danger)"></span>Full</span>
+  <span><span class="sw" style="background:#facc15"></span>Cleaning</span>
   <span><span class="sw" style="background:var(--tbl);border:2px solid var(--accent)"></span>Just opened (last 10 min)</span>
-  <span>Tap = Full ↔ Empty. Drag one table onto the next to join them (35·34A·34B and 43–49). ✕ splits a group.</span>
+  <span>Tap = Full ↔ Empty. Hold a table (½ sec) = Cleaning. Drag one table onto the next to join them (35·34A·34B and 43–49). − / + changes a group's seats. ✕ splits it.</span>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -161,16 +165,22 @@ if (!ROOMS[room]) room = "main";
 const $ = s => document.querySelector(s);
 const mins = at => Math.max(0, Math.floor((Date.now()-at)/60000));
 const isFull = id => !!(state[id] && state[id].status==="full");
+const isClean = id => !!(state[id] && state[id].status==="clean");
+const isBusy = id => isFull(id) || isClean(id);
+const NEXT = {open:"full", full:"open", clean:"open"};
+const statusOf = id => state[id] ? state[id].status : "open";
 const isNew = id => state[id] && state[id].status==="open" && Date.now()-state[id].at < NEW_MS;
 const seatOf = id => SEATS[id] ?? 0;
 const groupOf = id => groups.find(g => g.includes(id)) || null;
 const membersOf = id => groupOf(id) || [id];
+const gkey = g => g.join("_");
+const groupSeats = g => seats[gkey(g)] ?? g.reduce((a,m)=>a+seatOf(m),0);
 const labelOf = ids => ids.length>1 ? ids[0]+"–"+ids[ids.length-1] : ids[0];
 function toast(t){ const el=$("#toast"); el.textContent=t; el.style.display="block"; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.display="none",1800); }
 
 function renderTabs(){
   $("#tabs").innerHTML = Object.entries(ROOMS).map(([k,r]) => {
-    const full = r.tables.filter(t=>isFull(t[0])).length;
+    const full = r.tables.filter(t=>isBusy(t[0])).length;
     return `<button class="tab ${k===room?'on':''}" data-r="${k}">${r.name}<span style="font-weight:600;opacity:.85">${r.tables.length-full} empty</span></button>`;
   }).join("");
 }
@@ -187,14 +197,14 @@ function renderFloor(){
     if (done.has(id)) continue;
     const g = mode==="seats" ? null : groupOf(id);
     const ids = g || [id]; ids.forEach(x=>done.add(x));
-    const full=isFull(id), nw=isNew(id);
-    const sub = full ? `<span class="m">${mins(state[id].at)}m</span>` : nw ? `<span class="m">open ${mins(state[id].at)}m</span>` : '';
-    const cls = `t ${full?'full':''} ${nw?'new':''} ${pick===id?'pick':''}`;
+    const full=isFull(id), cl=isClean(id), nw=isNew(id);
+    const sub = full ? `<span class="m">${mins(state[id].at)}m</span>` : cl ? `<span class="m">cleaning ${mins(state[id].at)}m</span>` : nw ? `<span class="m">open ${mins(state[id].at)}m</span>` : '';
+    const cls = `t ${full?'full':''} ${cl?'clean':''} ${nw?'new':''} ${pick===id?'pick':''}`;
     if (g){
       let L=1e9,T=1e9,R=-1e9,B=-1e9;
       for (const m of g){ const [,x,y,ww,hh2]=TABLE[m]; L=Math.min(L,x-ww/2); T=Math.min(T,y-hh2/2); R=Math.max(R,x+ww/2); B=Math.max(B,y+hh2/2); }
-      const total = g.reduce((a,m)=>a+seatOf(m),0);
-      h += `<button class="${cls} grp" data-id="${id}" style="${boxLTWH(L,T,R-L,B-T)}"><span class="lab">${g.join(" + ")}</span><span class="seats">${total} seats</span>${sub}<span class="split" data-split="${id}">✕</span></button>`;
+      const total = groupSeats(g);
+      h += `<button class="${cls} grp" data-id="${id}" style="${boxLTWH(L,T,R-L,B-T)}"><span class="lab">${g.join(" + ")}</span><span class="seats"><span class="sb" data-seat="-1">−</span>${total} seats<span class="sb" data-seat="1">+</span></span>${sub}<span class="split" data-split="${id}">✕</span></button>`;
     } else {
       h += `<button class="${cls} ${round?'round':''}" data-id="${id}" style="${boxLTWH(cx-w/2,cy-hh/2,w,hh)}">${seatOf(id)?`<span class="p">${seatOf(id)}</span>`:""}${id}${sub}</button>`;
     }
@@ -202,16 +212,16 @@ function renderFloor(){
   f.innerHTML = h;
 }
 function renderBar(){
-  let total=0, full=0;
-  for (const r of Object.values(ROOMS)) for (const t of r.tables){ total++; if (isFull(t[0])) full++; }
+  let total=0, full=0, cleaning=0;
+  for (const r of Object.values(ROOMS)) for (const t of r.tables){ total++; if (isFull(t[0])) full++; if (isClean(t[0])) cleaning++; }
   const seen = new Set(), fresh = [];
   for (const [id,v] of Object.entries(state).sort((a,b)=>b[1].at-a[1].at)){
     if (!isNew(id)) continue; const ids = membersOf(id); const key = ids[0];
     if (seen.has(key)) continue; seen.add(key);
-    fresh.push([key, labelOf(ids), ids.reduce((a,m)=>a+seatOf(m),0), v.at]);
+    fresh.push([key, labelOf(ids), ids.length>1 ? groupSeats(ids) : seatOf(ids[0]), v.at]);
   }
   $("#readyBar").innerHTML =
-    `<span class="stat"><b>${total-full}</b> empty</span><span class="stat" style="color:var(--danger)"><b>${full}</b> full</span>`+
+    `<span class="stat"><b>${total-full-cleaning}</b> empty</span><span class="stat" style="color:var(--danger)"><b>${full}</b> full</span><span class="stat" style="color:#ca8a04"><b>${cleaning}</b> cleaning</span>`+
     `<span class="lbl" style="margin-left:10px">Just opened</span>`+
     (fresh.length ? fresh.map(([id,lab,n,at])=>`<button class="chip new-c" data-id="${id}">${lab}<small>${n?n+"p · ":""}${mins(at)}m</small></button>`).join("") : `<span class="empty">—</span>`);
 }
@@ -253,15 +263,16 @@ function join(a,b){
   const idx = [...membersOf(a), ...membersOf(b)].map(x=>chain.indexOf(x));
   const g = chain.slice(Math.min(...idx), Math.max(...idx)+1);
   groups = groups.filter(x=>!x.some(m=>g.includes(m))); groups.push(g);
-  const anyFull = g.some(isFull);
-  const need = g.filter(m=>isFull(m)!==anyFull);
+  const st = g.some(isFull) ? "full" : g.some(isClean) ? "clean" : "open";
+  const need = g.filter(m=>statusOf(m)!==st);
   saveGroups();
-  if (need.length) setTables(need, anyFull ? "full" : "open");
-  toast(`Joined ${labelOf(g)} · ${g.reduce((s,m)=>s+seatOf(m),0)} seats`);
+  if (need.length) setTables(need, st);
+  toast(`Joined ${labelOf(g)} · ${groupSeats(g)} seats`);
 }
-function split(id){ const g=groupOf(id); if(!g) return; groups = groups.filter(x=>x!==g); saveGroups(); toast(`Split ${labelOf(g)}`); }
+function split(id){ const g=groupOf(id); if(!g) return; groups = groups.filter(x=>x!==g); saveGroups(); if (gkey(g) in seats){ const n={...seats}; delete n[gkey(g)]; seats=n; saveSeats(); } toast(`Split ${labelOf(g)}`); }
 
-function tapTable(id, splitHit){
+function tapTable(id, splitHit, seatHit){
+  if (seatHit && mode==='normal'){ const g=groupOf(id); if (g){ seats = {...seats, [gkey(g)]: Math.max(1, Math.min(60, groupSeats(g)+seatHit))}; saveSeats(); } return; }
   if (mode==="seats"){ openSeats(id); return; }
   if (mode==="join"){
     if (!pick){ pick=id; render(); return; }
@@ -269,18 +280,20 @@ function tapTable(id, splitHit){
   }
   if (splitHit){ split(id); return; }
   const ids = membersOf(id);
-  setTables(ids, isFull(id) ? "open" : "full");
+  setTables(ids, NEXT[statusOf(id)] || "full");
 }
 
 // ---- Pointer: tap or drag-to-join ----
 let drag = null;
 $("#floor").addEventListener("pointerdown", e=>{
   const b = e.target.closest(".t"); if (!b) return;
-  drag = {id:b.dataset.id, x:e.clientX, y:e.clientY, moved:false, split: !!e.target.closest(".split"), over:null};
+  drag = {id:b.dataset.id, x:e.clientX, y:e.clientY, moved:false, split: !!e.target.closest(".split"), seat: +(e.target.closest("[data-seat]")?.dataset.seat||0), over:null, held:false};
+  const d0 = drag; b.classList.add("holding");
+  d0.timer = setTimeout(()=>{ if (drag!==d0 || d0.moved || d0.seat || d0.split || mode!=="normal") return; d0.held = true; b.classList.remove("holding"); setTables(membersOf(d0.id), "clean"); toast(`${labelOf(membersOf(d0.id))} → Cleaning`); }, 500);
 });
 document.addEventListener("pointermove", e=>{
   if (!drag) return;
-  if (!drag.moved && Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 14) drag.moved = true;
+  if (!drag.moved && Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 14){ drag.moved = true; clearTimeout(drag.timer); document.querySelectorAll(".t.holding").forEach(x=>x.classList.remove("holding")); }
   if (!drag.moved || mode!=="normal") return;
   const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".t");
   const over = el && el.dataset.id!==drag.id && !membersOf(drag.id).includes(el.dataset.id) ? el.dataset.id : null;
@@ -293,10 +306,12 @@ document.addEventListener("pointermove", e=>{
 document.addEventListener("pointerup", e=>{
   if (!drag) return; const d = drag; drag = null;
   document.querySelectorAll(".t.drop").forEach(x=>x.classList.remove("drop"));
-  if (!d.moved) tapTable(d.id, d.split);
+  clearTimeout(d.timer); document.querySelectorAll(".t.holding").forEach(x=>x.classList.remove("holding"));
+  if (d.held) return;
+  if (!d.moved) tapTable(d.id, d.split, d.seat);
   else if (d.over && mode==="normal") join(d.id, d.over);
 });
-document.addEventListener("pointercancel", ()=>{ drag=null; document.querySelectorAll(".t.drop").forEach(x=>x.classList.remove("drop")); });
+document.addEventListener("pointercancel", ()=>{ if (drag) clearTimeout(drag.timer); document.querySelectorAll(".t.holding").forEach(x=>x.classList.remove("holding")); drag=null; document.querySelectorAll(".t.drop").forEach(x=>x.classList.remove("drop")); });
 
 $("#joinBtn").addEventListener("click", ()=>{ mode = mode==="join" ? "normal" : "join"; pick=null; render(); });
 $("#seatsBtn").addEventListener("click", ()=>{ mode = mode==="seats" ? "normal" : "seats"; pick=null; render(); });
@@ -328,7 +343,7 @@ $("#sheetBg").addEventListener("click", async e=>{
   if (a==="minus"||a==="plus"){ seatDraft = Math.max(1, Math.min(30, seatDraft + (a==="plus"?1:-1))); $("#seatOut").textContent = seatDraft; return; }
   $("#sheetBg").style.display="none";
   if (a==="saveSeats"){ seats = {...seats, [$("#sheet").dataset.id]: seatDraft}; saveSeats(); }
-  if (a==="splitAll"){ groups = []; saveGroups(); }
+  if (a==="splitAll"){ groups = []; saveGroups(); seats = {}; saveSeats(); }
   if (a==="all"){
     const ids = Object.keys(state); state = {}; render();
     if (col) for (const k of ids){ try{ await col.doc(k).delete(); }catch(e){} }
@@ -354,7 +369,6 @@ function beep(){
   }catch(e){}
 }
 paintSound();
-
 
 // ---- Firebase Realtime Database adapter (same shape as the page's db calls) ----
 const FIREBASE_CONFIG = {
@@ -398,9 +412,9 @@ let first = true;
 function subscribe(){
   col.onSnapshot(snap=>{
     const next = {}, opened = [];
-    for (const d of snap.docs){ const v=d.data(); if (v && (v.status==="full"||v.status==="open")) next[d.id]={status:v.status, at:+v.at||Date.now()}; }
+    for (const d of snap.docs){ const v=d.data(); if (v && (v.status==="full"||v.status==="open"||v.status==="clean")) next[d.id]={status:v.status, at:+v.at||Date.now()}; }
     if (!first && !snap.metadata.hasPendingWrites){
-      for (const [id,v] of Object.entries(next)) if (v.status==="open" && isFull(id)) opened.push(id);
+      for (const [id,v] of Object.entries(next)) if (v.status==="open" && isBusy(id)) opened.push(id);
     }
     first = false;
     state = next; render(); setSync("live","Live");
@@ -426,9 +440,10 @@ render();
   }, ()=>{});
   db.doc("meta/seats").onSnapshot(d=>{
     const v = d.exists ? d.data() : {}; const n = {};
-    for (const [k,x] of Object.entries(v||{})) if (TABLE[k] && Number.isFinite(+x)) n[k] = +x;
+    for (const [k,x] of Object.entries(v||{})) if (k.split("_").every(t=>TABLE[t]) && Number.isFinite(+x)) n[k] = +x;
     seats = n; render();
   }, ()=>{});
 })();
 setInterval(()=>{ renderFloor(); renderBar(); }, 30000);
 </script>
+</body></html>
